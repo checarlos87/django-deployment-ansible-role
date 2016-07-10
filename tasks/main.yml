@@ -4,7 +4,7 @@
   with_items:
     - gcc
     - nginx
-    - postgresql-ciontrib
+    - postgresql-contrib
     - postgresql-devel
     - postgresql-server
     - python-devel
@@ -15,7 +15,7 @@
 - name: postgresql initdb
   shell: service potgresql initdb
 
-- name: start podtgresql
+- name: start postgresql
   service:
     name: postgresql
     state: started
@@ -100,6 +100,13 @@
     dest: "{{ dj_project_root }}/../bin/gunicorn_start"
     mode: 0744
 
+- name: set ownership throughout whole django dir structure
+  file:
+    state: directory
+    recurse: yes
+    owner: django
+    group: django
+
 # Supervisor
 
 - name: copy supervisord.conf
@@ -176,35 +183,4 @@
     name: nginx
     state: started
     enabled: yes
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
