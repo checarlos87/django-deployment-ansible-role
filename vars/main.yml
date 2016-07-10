@@ -1,0 +1,16 @@
+---
+#The path to the Pyhton installation you will
+# use for this django app.
+python_path: "/usr/bin/python"
+
+# PostgreSQL db and user for this app.
+db_name: "dj_db"
+db_user: "dj_user"
+
+# The Djano app and project name.
+app_name: "myapp"
+project_name: "myproject"
+
+# The FQDN of the server for this Django app.
+server_fqdn: "localhost"
+

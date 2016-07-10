@@ -1,0 +1,210 @@
+---
+- name: install necessary packages
+  yum: name={{ item }} state=present
+  with_items:
+    - gcc
+    - nginx
+    - postgresql-ciontrib
+    - postgresql-devel
+    - postgresql-server
+    - python-devel
+    - python-psycopg2
+
+# PostgreSQL
+
+- name: postgresql initdb
+  shell: service potgresql initdb
+
+- name: start podtgresql
+  service:
+    name: postgresql
+    state: started
+    enabled: yes
+
+- name: generate the database password
+  command: openssl rand -base64 33
+  register: db_pass
+  changed_when: no
+
+- name: create database
+  postgresql_db:
+    name: "{{ db_name }}"
+
+- name: create postgresql user
+  postgresql_user:
+    db: "{{ db_name }}"
+    name: "{{ db_user }}"
+    password: "{{ db_pass.stdout }}"
+    encrypted: yes
+    role_attr_flags: "NOSUPERUSER"
+    priv: ALL
+    state: present 
+
+- name: update pg_hba.conf
+  copy:
+    src: pg_hba.conf
+    dest: "/var/lib/pgsql/data"
+    owner: postgres
+    group: postgres
+    mode: 0600
+
+- name: restart postgresql
+  service:
+    name: postgresql
+    state: restarted
+
+# Django
+
+- name: create the django unix user
+  user:
+    name: django
+    system: yes
+    state: present
+
+- name: create the django directory structure
+  file:
+    path: "/django/{{ app_name }}/project/static"
+    state: directory
+    owner: django
+    group: django
+    mode: 0755
+
+- name: create a virtualenv and install django and other requirements
+  pip:
+    requirements: requirements.txt
+    virtualenv: "/django/{{ app_name }}"
+    virtualenv_command: "{{ python_path }}/virtualenv"
+
+- set_fact: 
+    dj_project_root: "/django/{{ app_name }}/project"
+
+- name: create a django project
+  shell: "{{ dj_project_root }}/../bin/django-admin {{ project-name }} {{ dj_project_root }}"
+
+- name: render project's settings.py
+  template:
+    src: django-settings.py.j2
+    dest: "{{ dj_project_root }}/{{ project_name }}/settings.py"
+    mode: 0744
+
+- name: run initial migrations
+  django_manage:
+    command: migrate
+    virtualenv: "{{ dj_project_root }}/.."
+
+# Gunicorn
+
+- name: render gunicorn supervisor script
+  template:
+    src: gunicorn_start.j2
+    dest: "{{ dj_project_root }}/../bin/gunicorn_start"
+    mode: 0744
+
+# Supervisor
+
+- name: copy supervisord.conf
+  copy:
+    src: supervisord.conf
+    dest: /etc
+    mode: 0644
+
+- name: make supervisord.d directory
+  file:
+    path: /etc/supervisord.d
+    state: directory
+
+- name: render gunicorn's supervisord config
+  template:
+    src: supervisord-gunicorn.include.j2
+    dest: "/etc/supervisord.d/{{ app_name }}.conf"
+    mode: 0644
+
+- name: render supervisord init script
+  template:
+    src: supervisord-init.j2
+    dest: /etc/rc.d/init.d/supervisord
+    mode: 0755
+
+- name: register the init script
+  shell: chkconfig --add supervisord
+
+- name: start supervisord
+  service:
+    name: supervisord
+    state: started
+    enabled: yes
+
+# nginx
+
+- name: set up Debian-style nginx configuration (1)
+  file:
+    path: /etc/nginx/sites-available
+    state: directory
+    mode: 0755
+
+- name: set up Debian-style nginx configuration (2)
+  file:
+    path: /etc/nginx/sites-enabled
+    state: directory
+    mode: 0755
+
+- name: render app's nginix configuration
+  template:
+    src: nginx-app.conf.j2
+    dest: "/etc/nginx/sites-available/{{ app_name }}.conf"
+    mode: 0644
+
+- name: enable the app's nginx configuration
+  file:
+    path: "/etc/nginx/sites-enabled/{{ app_name }}.conf"
+    src: "/etc/nginx/sites-available/{{ app_name }}.conf"
+    state: link
+
+- name: check iptables rules
+  shell: iptables -L
+  register: iptables_rules
+  changed_when: no
+  always_run: yes 
+
+- name: open http port
+  command: "iptables -I INPUT 1 -p tcp --dport 80 -j ACCEPT"
+  when: iptables_rules.stdout.find("http") == -1
+  notify: save iptables
+
+- name: start nginx
+  service:
+    name: nginx
+    state: started
+    enabled: yes
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

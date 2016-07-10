@@ -1,0 +1,5 @@
+Django==1.9.7
+gunicorn
+psycopg2
+setproctitle
+supervisor
