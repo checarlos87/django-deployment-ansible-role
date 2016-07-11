@@ -1,4 +1,9 @@
 ---
+- name: install EPEL
+  yum:
+    name: epel-release
+    state: present
+
 - name: install necessary packages
   yum: name={{ item }} state=present
   with_items:
@@ -12,8 +17,15 @@
 
 # PostgreSQL
 
+- name: test if postgresql initdb is necessary
+  shell: ls /var/lib/pgsql/data
+  register: is_data_empty
+  changed_when: no
+  always_run: yes
+
 - name: postgresql initdb
-  shell: service potgresql initdb
+  shell: service postgresql initdb
+  when: is_data_empty.stdout == ''
 
 - name: start postgresql
   service:
@@ -29,6 +41,9 @@
 - name: create database
   postgresql_db:
     name: "{{ db_name }}"
+  become: true
+  become_user: postgres
+  become_method: su
 
 - name: create postgresql user
   postgresql_user:
@@ -39,6 +54,9 @@
     role_attr_flags: "NOSUPERUSER"
     priv: ALL
     state: present 
+  become: true
+  become_user: postgres
+  become_method: su
 
 - name: update pg_hba.conf
   copy:
