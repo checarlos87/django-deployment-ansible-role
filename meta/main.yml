@@ -1,0 +1,23 @@
+---
+#### README ####
+
+# Important notes regarding this role:
+#   1. This role assumes it will have access to
+#      a Python installation that already has 
+#      virtualenv installed. The path to the desired 
+#      Python is set in the "python_path" variable.
+#   2. SELinux is not handled at all in this role.
+#      Set SELinux up however you see fit. Keep in mind
+#      that a "enforcing" state with default configuration
+#      will interfere with nginx's logs.
+#   3. This role does not install a specific Django 
+#      app. It simply handles deployment of Django
+#      itself, eventually creating a new empty project
+#      for an app to be plugged into.
+#   4. The app_name variable can only accept letters, 
+#      numbers, and unserscores and must begin with a 
+#      letter. These requirements are not checked in the
+#      role, but you will trip up the role if they are not
+#      followed. Specifically, nginx's site-available
+#      config will not be properly rendered, but Ansible
+#      will not complain.
