@@ -1,4 +1,8 @@
 ---
+- name: disable selinux
+  selinux:
+    state: disabled
+
 - name: install EPEL
   yum:
     name: epel-release
@@ -87,9 +91,15 @@
     group: django
     mode: 0755
 
+- name: copy the pip requirements file
+  copy:
+    src: requirements.txt
+    dest: "/django/{{ app_name }}"
+    mode: 0644
+
 - name: create a virtualenv and install django and other requirements
   pip:
-    requirements: requirements.txt
+    requirements: "/django/{{ app_name }}/requirements.txt"
     virtualenv: "/django/{{ app_name }}"
     virtualenv_command: "{{ python_path }}/virtualenv"
 
@@ -97,7 +107,7 @@
     dj_project_root: "/django/{{ app_name }}/project"
 
 - name: create a django project
-  shell: "{{ dj_project_root }}/../bin/django-admin {{ project-name }} {{ dj_project_root }}"
+  shell: "{{ dj_project_root }}/../bin/django-admin startproject {{ project_name }} {{ dj_project_root }}"
 
 - name: render project's settings.py
   template:
@@ -107,6 +117,7 @@
 
 - name: run initial migrations
   django_manage:
+    app_path: "{{ dj_project_root }}"
     command: migrate
     virtualenv: "{{ dj_project_root }}/.."
 
@@ -118,12 +129,10 @@
     dest: "{{ dj_project_root }}/../bin/gunicorn_start"
     mode: 0744
 
-- name: set ownership throughout whole django dir structure
+- name: make gunicorn run/ directory
   file:
+    path: "{{ dj_project_root }}/../run"
     state: directory
-    recurse: yes
-    owner: django
-    group: django
 
 # Supervisor
 
@@ -137,6 +146,19 @@
   file:
     path: /etc/supervisord.d
     state: directory
+
+- name: make supervisord log directory
+  file:
+    path: "{{ dj_project_root }}/../logs"
+    state: directory
+
+- name: set ownership throughout whole django dir structure
+  file:
+    path: "/django"
+    state: directory
+    recurse: yes
+    owner: django
+    group: django
 
 - name: render gunicorn's supervisord config
   template:
@@ -172,6 +194,11 @@
     path: /etc/nginx/sites-enabled
     state: directory
     mode: 0755
+
+- name: copy nginx.conf
+  copy:
+    src: nginx.conf
+    dest: /etc/nginx
 
 - name: render app's nginix configuration
   template:

@@ -1,7 +1,7 @@
 ---
 #The path to the Pyhton installation you will
 # use for this django app.
-python_path: "/usr/bin/python"
+python_path: "/usr/bin"
 
 # PostgreSQL db and user for this app.
 db_name: "dj_db"
